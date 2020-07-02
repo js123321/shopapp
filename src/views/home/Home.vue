@@ -43,13 +43,13 @@ import HomeFeature from './ChildComps/HomeFeature'
 import TabControl from 'components/content/tabControl/TabControl.vue'
 import GoodsList from 'components/content/goods/GoodsList.vue'
 import Scroll from 'components/common/scroll/Scroll.vue'
-import BackTop from 'components/content/backTop/BackTop.vue'
 
 import { getMultiData, getProductData } from 'network/home.js'
-import { debounce } from 'common/utils.js'
+import { itemListenerMixin, backTopMixin } from 'common/mixin.js'
 
 export default {
   name: 'Home',
+  mixins: [itemListenerMixin, backTopMixin],
   components: {
     NavTab,
     HomeSwiper,
@@ -57,8 +57,7 @@ export default {
     HomeFeature,
     TabControl,
     GoodsList,
-    Scroll,
-    BackTop
+    Scroll
   },
   data () {
     return {
@@ -89,20 +88,14 @@ export default {
     this.getProductData('new')
     this.getProductData('sell')
   },
-  mounted () {
-    const refresh = debounce(this.$refs.scroll.refresh, 200)
-    // 监听goodsitem图片加载完成
-    this.$bus.$on('itemImgLoad', () => {
-      // this.$refs.scroll.refresh()
-      refresh()
-    })
-  },
   destroyed () {
-    console.log('销毁时执行')
+    // console.log('销毁时执行')
   },
   deactivated () {
     // 离开时保存滚动条位置
     this.saveY = this.$refs.scroll.getScrollY()
+    // 取消全局事件的监听
+    this.$bus.$off('itemImgLoad', 'itemImaListener')
   },
   activated () {
     // 跳到保存滚动条位置
@@ -132,13 +125,13 @@ export default {
       this.$refs.tabControl1.currentIndex = index
       this.$refs.tabControl2.currentIndex = index
       // 分类切换时能跳回来
-      this.$refs.scroll.scrollTo(0, (-this.tabOffsetTop))
-    },
-    backClick () { // 返回顶部
-      this.$refs.scroll.scrollTo(0, 0)
+      if (this.isTabFixed) {
+        this.$refs.scroll.scrollTo(0, (-this.tabOffsetTop))
+      }
     },
     contentScroll (position) { // 滚动监听
       // backTop的显示和隐藏
+      this.isShowBackTopDom(position)
       this.isShowBackTop = (-position.y) > 1000
       // tabControl 吸顶效果
       this.isTabFixed = (-position.y) > this.tabOffsetTop
@@ -148,7 +141,6 @@ export default {
     },
     swiperImgLoad () { // 监听轮播图图片加载
       this.tabOffsetTop = this.$refs.tabControl2.$el.offsetTop
-      // console.log(this.tabOffsetTop)
     },
     /**
      * 网络请求相关
@@ -177,31 +169,17 @@ export default {
 
 <style lang="less" scoped>
 #home {
-  // padding-top: 44px;
   height: 100vh;
   position: relative;
 }
 .home-navtab {
   background-color: var(--color-tint);
   color: #fff;
-  // position: fixed;
-  // left: 0;
-  // top: 0;
-  // right: 0;
-  // z-index: 99;
 }
 .tab-control {
-  // position: sticky;
-  // top: 44px;
   position: relative;
   z-index: 99;
 }
-// .fixed {
-//   position: fixed;
-//   left: 0;
-//   right: 0;
-//   top: 44px
-// }
 .content {
   position: absolute;
   top: 44px;
